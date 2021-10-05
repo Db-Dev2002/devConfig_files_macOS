@@ -1,0 +1,20 @@
+[Animation]
+Frames=0
+
+[Appearance]
+BackgroundColor=19,19,19
+HideSkinBorders=true
+Translucency=true
+
+[Desktop Entry]
+DefaultProfile=coding.profile
+
+[Dialogs]
+FirstRun=false
+
+[Window]
+Height=70
+KeepOpen=false
+ShowOnAllDesktops=false
+ShowTabBar=false
+ShowTitleBar=false
