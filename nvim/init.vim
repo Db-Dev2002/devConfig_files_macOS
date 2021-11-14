@@ -116,7 +116,7 @@ call plug#end()
 set noshowmode
 " Set a colour scheme and add a custom filename pattern.
 let g:lightline = {
-    \ 'colorscheme': 'onehalfdark',
+    \ 'colorscheme': 'powerlineish',
     \ 'active': {
     \     'left': [
     \         [ 'mode', 'paste' ],
