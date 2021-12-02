@@ -1,6 +1,4 @@
-" =============================================================================
 " INITIAL SETUP
-" =============================================================================
 
 set shell=/bin/bash
 
@@ -8,7 +6,7 @@ set shell=/bin/bash
 let mapleader = "\<Space>"
 
 " =============================================================================
-" # PLUGINS
+"				    PLUGINS
 " =============================================================================
 
 " Install vim-plug if it isn't already
@@ -31,7 +29,7 @@ Plug 'machakann/vim-highlightedyank'
 Plug 'jeffkreeftmeijer/vim-numbertoggle'
 " Additional color schemes
 "Plug 'sainnhe/sonokai'
-Plug 'sonph/onehalf', {'rtp': 'vim/'}
+" Plug 'sonph/onehalf', {'rtp': 'vim/'}
 " Coloriser for color codes and things
 Plug 'norcalli/nvim-colorizer.lua'
 
@@ -61,19 +59,27 @@ Plug 'APZelos/blamer.nvim'
 " Run Git commands and resolve conflicts inside Vim
 Plug 'tpope/vim-fugitive'
 
+Plug 'hrsh7th/cmp-nvim-lsp', {'branch': 'main'}
+Plug 'hrsh7th/cmp-buffer', {'branch': 'main'}
+Plug 'hrsh7th/cmp-path', {'branch': 'main'}
+Plug 'hrsh7th/nvim-cmp', {'branch': 'main'}
+Plug 'ray-x/lsp_signature.nvim'
+
+" Only because nvim-cmp _requires_ snippets
+Plug 'hrsh7th/cmp-vsnip', {'branch': 'main'}
+Plug 'hrsh7th/vim-vsnip'
+
 " Semantic language support
 " -------------------------
 " Collection of common configurations for the Nvim LSP client
 Plug 'neovim/nvim-lspconfig'
 " Extensions to built-in LSP, for example, providing type inlay hints
 Plug 'nvim-lua/lsp_extensions.nvim'
-" Autocompletion framework for built-in LSP
-Plug 'nvim-lua/completion-nvim'
 " Improvements to the built-in LSP UI
 Plug 'RishabhRD/popfix'
 Plug 'RishabhRD/nvim-lsputils'
 " Statusline component for LSP information
-Plug 'nerosnm/lsp-status.nvim'
+Plug 'nvim-lua/lsp-status.nvim'
 
 " Syntactic language support
 " --------------------------
@@ -116,7 +122,7 @@ call plug#end()
 set noshowmode
 " Set a colour scheme and add a custom filename pattern.
 let g:lightline = {
-    \ 'colorscheme': 'powerlineish',
+    \ 'colorscheme': 'powerline',
     \ 'active': {
     \     'left': [
     \         [ 'mode', 'paste' ],
@@ -189,6 +195,8 @@ map <C-p> :Files<CR>
 nmap <leader>; :Buffers<CR>
 " Run a Rg search with <leader>s
 noremap <leader>s :Rg
+" Run FZF from the home dir with <leader>p
+map <leader>[ :FZF ~<CR>
 command! -bang -nargs=* Rg
   \ call fzf#vim#grep(
   \   'rg --column --line-number --no-heading --color=always '.shellescape(<q-args>), 1,
@@ -229,50 +237,109 @@ let g:blamer_relative_time = 1
 " ----------------------------------------------
 " Set up language server(s)
 lua <<EOF
-local config = require'lspconfig'
-local completion = require'completion'
+local cmp = require'cmp'
+local lspconfig = require'lspconfig'
 local status = require'lsp-status'
+local capabilities = require('cmp_nvim_lsp').update_capabilities(vim.lsp.protocol.make_client_capabilities())
 
-local on_attach = function(client)
-    completion.on_attach(client)
-    status.on_attach(client, bufnr)
+cmp.setup({
+  snippet = {
+    -- REQUIRED by nvim-cmp. get rid of it once we can
+    expand = function(args)
+      vim.fn["vsnip#anonymous"](args.body)
+    end,
+  },
+  mapping = {
+    -- Tab immediately completes. C-n/C-p to select.
+    ['<Tab>'] = cmp.mapping.confirm({ select = true })
+  },
+  sources = cmp.config.sources({
+    -- TODO: currently snippets from lsp end up getting prioritized -- stop that!
+    { name = 'nvim_lsp' },
+  }, {
+    { name = 'path' },
+  }),
+  experimental = {
+    ghost_text = true,
+  },
+})
+
+-- Enable completing paths in :
+cmp.setup.cmdline(':', {
+  sources = cmp.config.sources({
+    { name = 'path' }
+  })
+})
+
+-- Setup lspconfig.
+local on_attach = function(client, bufnr)
+  local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
+  local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
+
+  --Enable completion triggered by <c-x><c-o>
+  buf_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc')
+
+  -- Mappings.
+  local opts = { noremap=true, silent=true }
+
+  -- See `:help vim.lsp.*` for documentation on any of the below functions
+  buf_set_keymap('n', 'gD', '<Cmd>lua vim.lsp.buf.declaration()<CR>', opts)
+  buf_set_keymap('n', 'gd', '<Cmd>lua vim.lsp.buf.definition()<CR>', opts)
+  buf_set_keymap('n', 'K', '<Cmd>lua vim.lsp.buf.hover()<CR>', opts)
+  buf_set_keymap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
+  buf_set_keymap('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
+  buf_set_keymap('n', '<space>D', '<cmd>lua vim.lsp.buf.type_definition()<CR>', opts)
+  buf_set_keymap('n', '<space>r', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
+  buf_set_keymap('n', '<space>a', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
+  buf_set_keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+  buf_set_keymap('n', '<space>e', '<cmd>lua vim.lsp.diagnostic.show_line_diagnostics()<CR>', opts)
+  buf_set_keymap('n', '[d', '<cmd>lua vim.lsp.diagnostic.goto_prev()<CR>', opts)
+  buf_set_keymap('n', ']d', '<cmd>lua vim.lsp.diagnostic.goto_next()<CR>', opts)
+  buf_set_keymap('n', '<space>q', '<cmd>lua vim.lsp.diagnostic.set_loclist()<CR>', opts)
+  buf_set_keymap("n", "<space>f", "<cmd>lua vim.lsp.buf.formatting()<CR>", opts)
+
+  -- Get signatures (and _only_ signatures) when in argument lists.
+  require "lsp_signature".on_attach({
+    doc_lines = 0,
+    handler_opts = {
+      border = "none"
+    },
+  })
 end
 
-config.rust_analyzer.setup({
+lspconfig.rust_analyzer.setup({
     on_attach = on_attach,
-    on_init = function(client)
-        client.config.flags = {
-            allow_incremental_sync = false;
-        }
-    end,
-    capabilities = status.capabilities,
+    capabilities = capabilities,
     settings = {
         ["rust-analyzer"] = {
-            diagnostics = {
-                disabled = {
-                    "unresolved-proc-macro"
-                }
-            }
+	   cargo = {
+	     allFeatures = true,
+           },
+	   completion = {
+	     postfix = {
+	     enable = false,
+	   },
         },
+      },
     },
     flags = {
         debounce_did_change_notify = 50,
-    },
+debounce_did_change_notify          },
 })
 
-config.hls.setup({
+lspconfig.hls.setup({
     on_attach = on_attach,
-    capabilities = status.capabilities,
+    capabilities = capabilities,
 })
 
-config.tsserver.setup({
+lspconfig.tsserver.setup({
     on_attach = on_attach,
-    capabilities = status.capabilities,
+    capabilities = capabilities,
 })
 
-config.metals.setup({
+lspconfig.metals.setup({
     on_attach = on_attach,
-    capabilities = status.capabilities,
+    capabilities = capabilities,
 })
 
 vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
@@ -281,7 +348,7 @@ vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
             prefix = '>',
         },
         signs = true,
-        update_in_insert = false,
+        update_in_insert = true,
     }
 )
 
@@ -308,27 +375,11 @@ status.config({
 })
 EOF
 
-" Code navigation shortcuts
-nnoremap <silent> gd    <cmd>lua vim.lsp.buf.definition()<CR>
-nnoremap <silent> K     <cmd>lua vim.lsp.buf.hover()<CR>
-nnoremap <silent> gi    <cmd>lua vim.lsp.buf.implementation()<CR>
-nnoremap <silent> <c-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
-nnoremap <silent> gD    <cmd>lua vim.lsp.buf.type_definition()<CR>
-nnoremap <silent> gu    <cmd>lua vim.lsp.buf.references()<CR>
-nnoremap <silent> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
-nnoremap <silent> gW    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
-nnoremap <silent> ga    <cmd>lua vim.lsp.buf.code_action()<CR>
-nnoremap <silent> gr    <cmd>lua vim.lsp.buf.rename()<CR>
-
 " Set updatetime for CursorHold
 " 100ms of no cursor movement to trigger CursorHold
 set updatetime=100
 " Show diagnostic popup on cursor hold
 autocmd CursorHold * lua vim.lsp.diagnostic.show_line_diagnostics()
-
-" Goto previous/next diagnostic warning/error
-nnoremap <silent> g< <cmd>lua vim.lsp.diagnostic.goto_prev()<CR>
-nnoremap <silent> g> <cmd>lua vim.lsp.diagnostic.goto_next()<CR>
 
 " Enable type inlay hints
 autocmd CursorMoved,InsertLeave,BufEnter,BufWinEnter,TabEnter,BufWritePost *
@@ -368,8 +419,8 @@ inoremap <expr> <Tab>   pumvisible() ? "\<C-n>" : "\<Tab>"
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 
 " use <Tab> as trigger keys
-imap <Tab> <Plug>(completion_smart_tab)
-imap <S-Tab> <Plug>(completion_smart_s_tab)
+"imap <Tab> <Plug>(completion_smart_tab)
+"imap <S-Tab> <Plug>(completion_smart_s_tab)
 
 " Set matching strategy for completions
 let g:completion_matching_strategy_list = ['exact', 'substring', 'fuzzy', 'all']
@@ -380,7 +431,7 @@ let g:completion_enable_auto_paren = 1
 " rust.vim
 " --------
 " Turn on automatic formatting on save using nightly rustfmt $rustup run nightly rustfmt
-"let g:rustfmt_command = 'cargo fmt'
+" let g:rustfmt_command = 'cargo fmt'
 let g:rustfmt_autosave = 1
 
 " vimtex
@@ -457,6 +508,11 @@ augroup END
 augroup cpp | au!
     au Filetype cpp setlocal shiftwidth=2 softtabstop=2
     au BufNewFile,BufRead *.cpp,*.hpp :ClangFormatAutoEnable
+augroup END
+
+augroup c | au!
+    au Filetype c setlocal shiftwidth=2 softtabstop=2
+    au BufNewFile,BufRead *.c,*.h :ClangFormatAutoEnable
 augroup END
 
 " LaTeX
@@ -734,4 +790,4 @@ nnoremap <C-H> <C-W><C-H>
 " Run make from the current directory
 noremap M :make<cr>
 " Run make from the directory containing the current file
-noremap p MM :!cd "%:p:h" \| make<cr>
+noremap m MM :!cd "%:p:h" \| make<cr>

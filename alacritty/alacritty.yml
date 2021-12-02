@@ -255,7 +255,7 @@ draw_bold_text_with_bright_colors: true
   # white:   '0xFFFFFF'
 colors:
   primary:
-    background: "0x191a1c"
+    background: "#2a2a2a"
     foreground: "0xf0f0f0"
 
   normal:
